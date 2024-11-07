@@ -1,0 +1,112 @@
+@page "/"
+@inject IJSRuntime jsRuntime
+@inject ProtoProcessorService ProtoService
+@using ProtoBuf.Reflection
+@using System.Diagnostics
+
+<PageTitle>Editor</PageTitle>
+
+<div class="row">
+    <div class="col-lg-6">
+        <StandaloneCodeEditor @ref="_editor" Id="my-editor-instance-id" ConstructionOptions="EditorConstructionOptions" />
+        <button class="btn btn-primary my-2" @onclick="GetValue">Compile</button>
+    </div>
+    <div class="col-lg-6">
+        <StandaloneCodeEditor @ref="_editorCsharp" Id="editor-csharp" ConstructionOptions="CsharpEditorConstructionOptions" />
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <h3>Error</h3>
+    <p>@_error</p>
+}
+
+@if (_stopwatch.IsRunning)
+{
+    <p>Processing...</p>
+}
+else if (_stopwatch.ElapsedMilliseconds > 0)
+{
+    <p>Time taken: @_stopwatch.ElapsedMilliseconds ms</p>
+}
+
+@code {
+    // https://github.com/serdarciplak/BlazorMonaco/blob/master/SampleApp/Pages/Index.razor
+    private StandaloneCodeEditor _editor = null!;
+    private StandaloneCodeEditor _editorCsharp = null!;
+    private IEnumerable<CodeFile>? _files;
+    private string _error = string.Empty;
+    private Stopwatch _stopwatch = new Stopwatch();
+
+    private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
+    {
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = "proto",
+            Value = @"
+syntax = ""proto3"";
+
+import ""aelf/options.proto"";
+import ""google/protobuf/empty.proto"";
+import ""google/protobuf/wrappers.proto"";
+import ""Protobuf/reference/acs12.proto"";
+// The namespace of this class
+option csharp_namespace = ""AElf.Contracts.HelloWorld"";
+
+service HelloWorld {
+  // The name of the state class the smart contract is going to use to access blockchain state
+  option (aelf.csharp_state) = ""AElf.Contracts.HelloWorld.HelloWorldState"";
+  option (aelf.base) = ""Protobuf/reference/acs12.proto"";
+  
+  // Actions (methods that modify contract state)
+  // Stores the value in contract state
+  rpc Update (google.protobuf.StringValue) returns (google.protobuf.Empty) {
+  }
+
+  // Views (methods that don't modify contract state)
+  // Get the value stored from contract state
+  rpc Read (google.protobuf.Empty) returns (google.protobuf.StringValue) {
+    option (aelf.is_view) = true;
+  }
+}
+
+// An event that will be emitted from contract method call
+message UpdatedMessage {
+  option (aelf.is_event) = true;
+  string value = 1;
+}
+"
+        };
+    }
+
+    private StandaloneEditorConstructionOptions CsharpEditorConstructionOptions(StandaloneCodeEditor editor)
+    {
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = "csharp",
+        };
+    }
+
+    private async Task GetValue()
+    {
+        _stopwatch.Restart();
+        await _editorCsharp.SetValue(string.Empty);
+        var val = await _editor.GetValue();
+        Console.WriteLine($"value is: {val}");
+
+        // process the file using the protoincrementalgenerator
+        try
+        {
+            _files = await ProtoService.ProcessProtoFileAsync(val);
+            _stopwatch.Stop();
+            await _editorCsharp.SetValue(_files.First().Text);
+        }
+        catch (Exception e)
+        {
+            _error = e.Message;
+        }
+    }
+}
