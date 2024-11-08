@@ -65,8 +65,11 @@ namespace Client
             // A manual example, consider using a more sophisticated approach.
             switch (namespaceName)
             {
+                case "AElf.Sdk.CSharp":
                 case "AElf.Sdk.CSharp.State":
                     return "AElf.Sdk.CSharp";
+                case "Google.Protobuf.WellKnownTypes":
+                    return "Google.Protobuf";
                 default:
                     throw new ArgumentException($"Unknown namespace: {namespaceName}");
             }
