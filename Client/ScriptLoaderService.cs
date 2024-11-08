@@ -46,20 +46,74 @@ namespace Client
             return ret;
         }
 
+        private static string[] GetUsings(string code)
+        {
+            var tree = CSharpSyntaxTree.ParseText(code);
+            var root = tree.GetCompilationUnitRoot();
+            
+            var usings = root.Usings
+                            .Select(usingDirective => usingDirective.Name.ToString())
+                            .ToArray();
+            
+            return usings;
+        }
+
+        private static string GetAssemblyName(string namespaceName)
+        {
+            Console.WriteLine($"Namespace: {namespaceName}");
+
+            // A manual example, consider using a more sophisticated approach.
+            switch (namespaceName)
+            {
+                case "AElf.Sdk.CSharp.State":
+                    return "AElf.Sdk.CSharp";
+                default:
+                    throw new ArgumentException($"Unknown namespace: {namespaceName}");
+            }
+        }
+
+        private static Assembly LoadAssembly(string assemblyName)
+        {
+            try
+            {
+                return Assembly.Load(new AssemblyName(assemblyName));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading assembly: {ex.Message}");
+                return null;
+            }
+        }
+
         public async Task<string> CompileToDLLString(string sourceCode, string assemblyName = "", bool release = true, SourceCodeKind sourceCodeKind = SourceCodeKind.Regular)
         {
             if (string.IsNullOrEmpty(assemblyName)) assemblyName = Path.GetRandomFileName();
             var codeString = SourceText.From(sourceCode);
             var options = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp11).WithKind(sourceCodeKind);
             var parsedSyntaxTree = SyntaxFactory.ParseSyntaxTree(codeString, options);
+
+            var references = new List<MetadataReference>();
+
             var appAssemblies = Assembly.GetEntryAssembly()!.GetReferencedAssemblies().Select(o => Assembly.Load(o)).ToList();
             appAssemblies.Add(typeof(object).Assembly);
-            var references = new List<MetadataReference>();
             foreach (var assembly in appAssemblies)
             {
                 var metadataReference = await GetAssemblyMetadataReference(assembly);
                 references.Add(metadataReference);
             }
+
+            var usings = GetUsings(sourceCode);
+            foreach (var ns in usings)
+            {
+                var _assemblyName = GetAssemblyName(ns);
+                if (_assemblyName != null)
+                {
+                    var assembly = LoadAssembly(_assemblyName);
+                    var metadataReference = await GetAssemblyMetadataReference(assembly);
+                    references.Add(metadataReference);
+                }
+            }
+
             CSharpCompilation compilation;
             if (sourceCodeKind == SourceCodeKind.Script)
             {

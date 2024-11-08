@@ -1,8 +1,8 @@
 @page "/"
 @inject IJSRuntime jsRuntime
 @inject ProtoProcessorService ProtoService
-@using ProtoBuf.Reflection
 @using System.Diagnostics
+@using Client
 
 <PageTitle>Editor</PageTitle>
 
@@ -35,7 +35,7 @@ else if (_stopwatch.ElapsedMilliseconds > 0)
     // https://github.com/serdarciplak/BlazorMonaco/blob/master/SampleApp/Pages/Index.razor
     private StandaloneCodeEditor _editor = null!;
     private StandaloneCodeEditor _editorCsharp = null!;
-    private IEnumerable<CodeFile>? _files;
+    private IEnumerable<NameText>? _files;
     private string _error = string.Empty;
     private Stopwatch _stopwatch = new Stopwatch();
 

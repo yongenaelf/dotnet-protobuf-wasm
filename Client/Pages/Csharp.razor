@@ -47,17 +47,15 @@ else if (_stopwatch.ElapsedMilliseconds > 0)
             AutomaticLayout = true,
             Language = "csharp",
             Value = @"
-using System;
+using AElf.Sdk.CSharp.State;
 
-namespace RoslynCompileSample
+namespace AElf.Contracts.HelloWorld
 {
-    public class Writer
+    // The state class is access the blockchain state
+    public class HelloWorldState : ContractState
     {
-        public string Write(string message)
-        {
-            var ret = message + DateTime.Now;
-            return ret;
-        }
+        // A state that holds string value
+        public StringState Message { get; set; }
     }
 }
 "
